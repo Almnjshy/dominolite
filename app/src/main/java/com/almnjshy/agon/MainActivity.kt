@@ -3,7 +3,6 @@ package com.almnjshy.agon
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.almnjshy.agon.engine.AIDifficulty
@@ -16,7 +15,7 @@ import com.almnjshy.agon.ui.theme.AgonTheme
 
 private sealed interface Screen {
     data object Menu : Screen
-    data class InGame(val playerCount: Int, val difficulty: AIDifficulty) : Screen
+    data class InGame(val playerCount: Int, difficulty: AIDifficulty) : Screen
     data object Lobby : Screen
     data object NetworkGame : Screen
 }
@@ -24,7 +23,7 @@ private sealed interface Screen {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // ❌ تم إزالة enableEdgeToEdge()
         setContent {
             AgonTheme {
                 var screen by remember { mutableStateOf<Screen>(Screen.Menu) }
