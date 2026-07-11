@@ -1,9 +1,7 @@
 package com.almnjshy.agon.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,7 +11,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.almnjshy.agon.board.BoardEngine
-import com.almnjshy.agon.board.ScreenTransform
 import com.almnjshy.agon.engine.*
 import com.almnjshy.agon.rendering.TableSurface
 import com.almnjshy.agon.rendering.TableTheme
@@ -22,6 +19,7 @@ import com.almnjshy.agon.ui.components.OpponentHandView
 import com.almnjshy.agon.ui.components.PlayerHandView
 import com.almnjshy.agon.ui.theme.AgonColors
 
+/** Local single-device hotseat entry point: one local human + AI opponents. */
 @Composable
 fun GameScreen(
     playerCount: Int,
@@ -43,6 +41,9 @@ fun GameScreen(
     }
 }
 
+/** Network entry point: state is either computed here (host) or received from the host
+ *  (client) — see [com.almnjshy.agon.network.NetworkGameViewModel]. Rendering is shared
+ *  with hotseat play through [GameBoard]. */
 @Composable
 fun NetworkGameScreen(
     vm: com.almnjshy.agon.network.NetworkGameViewModel,
@@ -58,6 +59,10 @@ fun NetworkGameScreen(
     }
 }
 
+/** Shared table rendering for both hotseat and network play. Always draws the local
+ *  seat ([GameController.localSeatIndex]) at the bottom and rotates everyone else
+ *  around them, so every device sees itself the same way regardless of absolute
+ *  player index. */
 @Composable
 private fun GameBoard(
     controller: GameController,
@@ -78,20 +83,12 @@ private fun GameBoard(
             val density = androidx.compose.ui.platform.LocalDensity.current
             val centerX = with(density) { (maxWidth / 2).toPx() }
             val centerY = with(density) { (maxHeight / 2).toPx() }
-            
-            // ✅ استبدال IsometricTransform بـ ScreenTransform
-            val screenTransform = remember(centerX, centerY) {
-                ScreenTransform(
-                    scalePx = unitPx,
-                    originScreenX = centerX,
-                    originScreenY = centerY
-                )
-            }
 
             ChainView(
                 chain = s.chain,
                 bounds = bounds,
-                transform = screenTransform,  // ← جديد
+                originX = centerX,
+                originY = centerY,
                 unitPx = unitPx,
                 modifier = Modifier.fillMaxSize()
             )
@@ -108,16 +105,12 @@ private fun GameBoard(
                     else -> Alignment.TopCenter
                 }
                 Column(
-                    modifier = Modifier.align(alignment).padding(8.dp),
+                    modifier = Modifier.align(alignment).padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     SeatLabel(player, isActive = s.currentPlayerIndex == player.id)
-                    Spacer(Modifier.height(4.dp))
-                    OpponentHandView(
-                        tileCount = player.hand.size,
-                        seat = displaySeat,
-                        modifier = Modifier.padding(2.dp)
-                    )
+                    Spacer(Modifier.height(6.dp))
+                    OpponentHandView(tileCount = player.hand.size, seat = displaySeat)
                 }
             }
         }
@@ -135,12 +128,12 @@ private fun GameBoard(
         }
 
         Column(
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val me = s.players[localSeatIndex]
             SeatLabel(me, isActive = s.currentPlayerIndex == me.id)
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
             PlayerHandView(
                 hand = me.hand,
                 selectedTileId = selectedTile?.id,
@@ -154,40 +147,12 @@ private fun GameBoard(
                         controller.selectTile(tile)
                         controller.playSelectedTile(sides.first())
                     }
-                },
-                modifier = Modifier.horizontalScroll(rememberScrollState())
+                }
             )
-
-            val selected = selectedTile
-            if (selected != null && !s.roundOver && s.currentPlayerIndex == me.id) {
-                val sides = GameEngine.playableSides(s, selected)
-                if (sides.isNotEmpty()) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(top = 8.dp)
-                    ) {
-                        if (sides.contains(ChainSide.LEFT)) {
-                            Button(
-                                onClick = { controller.playSelectedTile(ChainSide.LEFT) },
-                                colors = ButtonDefaults.buttonColors(containerColor = AgonColors.Gold)
-                            ) {
-                                Text("◀ يسار", color = AgonColors.WoodDark)
-                            }
-                        }
-                        if (sides.contains(ChainSide.RIGHT)) {
-                            Button(
-                                onClick = { controller.playSelectedTile(ChainSide.RIGHT) },
-                                colors = ButtonDefaults.buttonColors(containerColor = AgonColors.Gold)
-                            ) {
-                                Text("يمين ▶", color = AgonColors.WoodDark)
-                            }
-                        }
-                        TextButton(
-                            onClick = { controller.selectTile(selected) }
-                        ) {
-                            Text("إلغاء", color = AgonColors.TileIvory)
-                        }
-                    }
+            if (selectedTile != null && GameEngine.playableSides(s, selectedTile!!).size > 1) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    Button(onClick = { controller.playSelectedTile(ChainSide.LEFT) }) { Text("يسار") }
+                    Button(onClick = { controller.playSelectedTile(ChainSide.RIGHT) }) { Text("يمين") }
                 }
             }
         }
