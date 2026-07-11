@@ -54,23 +54,20 @@ class HotspotManager(private val context: Context) {
             wifiManager.startLocalOnlyHotspot(object : WifiManager.LocalOnlyHotspotCallback() {
                 override fun onStarted(res: WifiManager.LocalOnlyHotspotReservation) {
                     reservation = res
-                    val softApConfig = res.softApConfiguration
-                    if (softApConfig != null) {
+                    // API 30+ uses softApConfiguration, older uses wifiConfiguration
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        val softApConfig = res.softApConfiguration
                         _credentials.value = HotspotCredentials(
-                            softApConfig.ssid?.toString() ?: "Agon",
-                            softApConfig.passphrase ?: ""
+                            softApConfig?.ssid?.toString() ?: "Agon",
+                            softApConfig?.passphrase ?: ""
                         )
                     } else {
                         @Suppress("DEPRECATION")
                         val config = res.wifiConfiguration
-                        if (config != null) {
-                            _credentials.value = HotspotCredentials(
-                                config.SSID?.trim('"') ?: "Agon",
-                                config.preSharedKey ?: ""
-                            )
-                        } else {
-                            _credentials.value = HotspotCredentials("Agon", "")
-                        }
+                        _credentials.value = HotspotCredentials(
+                            config?.SSID?.trim('"') ?: "Agon",
+                            config?.preSharedKey ?: ""
+                        )
                     }
                 }
 
