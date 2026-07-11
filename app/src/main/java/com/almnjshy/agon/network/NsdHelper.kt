@@ -21,6 +21,7 @@ class NsdHelper(private val context: Context) {
 
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
+    private var resolveListener: NsdManager.ResolveListener? = null
 
     private val _discoveredHost = MutableStateFlow<String?>(null)
     val discoveredHost: StateFlow<String?> = _discoveredHost
@@ -52,12 +53,22 @@ class NsdHelper(private val context: Context) {
 
             override fun onServiceFound(service: NsdServiceInfo) {
                 if (service.serviceName.contains(SERVICE_NAME)) {
-                    manager.resolveService(service, object : NsdManager.ResolveListener {
+                    // Use resolveService with NsdManager.ResolveListener (modern API)
+                    val resListener = object : NsdManager.ResolveListener {
                         override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) {}
                         override fun onServiceResolved(info: NsdServiceInfo) {
-                            _discoveredHost.value = info.host?.hostAddress
+                            // Use hostAddresses (API 34+) with fallback to deprecated host
+                            val address = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                info.hostAddresses.firstOrNull()?.hostAddress
+                            } else {
+                                @Suppress("DEPRECATION")
+                                info.host?.hostAddress
+                            }
+                            _discoveredHost.value = address
                         }
-                    })
+                    }
+                    resolveListener = resListener
+                    manager.resolveService(service, resListener)
                 }
             }
 
@@ -73,6 +84,7 @@ class NsdHelper(private val context: Context) {
         val manager = nsdManager ?: return
         registrationListener?.let { runCatching { manager.unregisterService(it) } }
         discoveryListener?.let { runCatching { manager.stopServiceDiscovery(it) } }
+        resolveListener = null
         registrationListener = null
         discoveryListener = null
     }
