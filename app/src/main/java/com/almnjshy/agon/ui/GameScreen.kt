@@ -13,7 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.almnjshy.agon.board.BoardEngine
-import com.almnjshy.agon.board.IsometricTransform
+import com.almnjshy.agon.board.ScreenTransform
 import com.almnjshy.agon.engine.*
 import com.almnjshy.agon.rendering.TableSurface
 import com.almnjshy.agon.rendering.TableTheme
@@ -78,10 +78,11 @@ private fun GameBoard(
             val density = androidx.compose.ui.platform.LocalDensity.current
             val centerX = with(density) { (maxWidth / 2).toPx() }
             val centerY = with(density) { (maxHeight / 2).toPx() }
-            val centeredIso = remember(centerX, centerY) {
-                IsometricTransform(
-                    tileUnitWidthPx = unitPx * 1.6f,
-                    tileUnitHeightPx = unitPx * 0.9f,
+            
+            // ✅ استبدال IsometricTransform بـ ScreenTransform
+            val screenTransform = remember(centerX, centerY) {
+                ScreenTransform(
+                    scalePx = unitPx,
                     originScreenX = centerX,
                     originScreenY = centerY
                 )
@@ -90,7 +91,7 @@ private fun GameBoard(
             ChainView(
                 chain = s.chain,
                 bounds = bounds,
-                isoTransform = centeredIso,
+                transform = screenTransform,  // ← جديد
                 unitPx = unitPx,
                 modifier = Modifier.fillMaxSize()
             )
@@ -157,7 +158,6 @@ private fun GameBoard(
                 modifier = Modifier.horizontalScroll(rememberScrollState())
             )
 
-            // ✅ إصلاح Smart Cast: نخزن في متغير محلي
             val selected = selectedTile
             if (selected != null && !s.roundOver && s.currentPlayerIndex == me.id) {
                 val sides = GameEngine.playableSides(s, selected)
