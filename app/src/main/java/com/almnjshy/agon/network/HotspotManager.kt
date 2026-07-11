@@ -1,6 +1,7 @@
 package com.almnjshy.agon.network
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
@@ -13,15 +14,6 @@ import kotlinx.coroutines.flow.StateFlow
 
 data class HotspotCredentials(val ssid: String, val password: String)
 
-/**
- * Host-side "Hotspot" mode: spins up a temporary, app-scoped WiFi network via Android's
- * LocalOnlyHotspot API (no internet, no router, no root — this is the same mechanism
- * apps like file-sharing tools use). Friends join it manually from their phone's WiFi
- * settings using the shown SSID/password (Android doesn't allow one app to silently join
- * another device to a network — that step needs the user), and once they're on it, the
- * app finds the host automatically via NSD (see [NsdHelper]) instead of asking anyone to
- * type an IP address.
- */
 class HotspotManager(private val context: Context) {
 
     private var reservation: WifiManager.LocalOnlyHotspotReservation? = null
@@ -32,9 +24,6 @@ class HotspotManager(private val context: Context) {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    /**
-     * Checks whether the app has the required permission to start a local-only hotspot.
-     */
     fun hasPermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(
@@ -47,6 +36,7 @@ class HotspotManager(private val context: Context) {
         }
     }
 
+    @SuppressLint("MissingPermission")
     fun start() {
         if (!hasPermission()) {
             _error.value = "يحتاج التطبيق إلى إذن الموقع / الأجهزة القريبة"
@@ -59,43 +49,43 @@ class HotspotManager(private val context: Context) {
             return
         }
 
-        // Use a Handler tied to the main looper for the callback
-        val handler = Handler(Looper.getMainLooper())
-
-        wifiManager.startLocalOnlyHotspot(object : WifiManager.LocalOnlyHotspotCallback() {
-            override fun onStarted(res: WifiManager.LocalOnlyHotspotReservation) {
-                reservation = res
-                // Use softApConfiguration (modern API) instead of deprecated wifiConfiguration
-                val softApConfig = res.softApConfiguration
-                if (softApConfig != null) {
-                    _credentials.value = HotspotCredentials(
-                        softApConfig.ssid?.toString() ?: "Agon",
-                        softApConfig.passphrase ?: ""
-                    )
-                } else {
-                    // Fallback for older devices (Android 10 and below)
-                    @Suppress("DEPRECATION")
-                    val config = res.wifiConfiguration
-                    if (config != null) {
+        try {
+            val handler = Handler(Looper.getMainLooper())
+            wifiManager.startLocalOnlyHotspot(object : WifiManager.LocalOnlyHotspotCallback() {
+                override fun onStarted(res: WifiManager.LocalOnlyHotspotReservation) {
+                    reservation = res
+                    val softApConfig = res.softApConfiguration
+                    if (softApConfig != null) {
                         _credentials.value = HotspotCredentials(
-                            config.SSID?.trim('"') ?: "Agon",
-                            config.preSharedKey ?: ""
+                            softApConfig.ssid?.toString() ?: "Agon",
+                            softApConfig.passphrase ?: ""
                         )
                     } else {
-                        _credentials.value = HotspotCredentials("Agon", "")
+                        @Suppress("DEPRECATION")
+                        val config = res.wifiConfiguration
+                        if (config != null) {
+                            _credentials.value = HotspotCredentials(
+                                config.SSID?.trim('"') ?: "Agon",
+                                config.preSharedKey ?: ""
+                            )
+                        } else {
+                            _credentials.value = HotspotCredentials("Agon", "")
+                        }
                     }
                 }
-            }
 
-            override fun onStopped() {
-                reservation = null
-                _credentials.value = null
-            }
+                override fun onStopped() {
+                    reservation = null
+                    _credentials.value = null
+                }
 
-            override fun onFailed(reason: Int) {
-                _error.value = "تعذر إنشاء نقطة الاتصال (كود $reason)"
-            }
-        }, handler)
+                override fun onFailed(reason: Int) {
+                    _error.value = "تعذر إنشاء نقطة الاتصال (كود $reason)"
+                }
+            }, handler)
+        } catch (e: SecurityException) {
+            _error.value = "تم رفض الإذن: ${e.message}"
+        }
     }
 
     fun stop() {
