@@ -1,7 +1,9 @@
 package com.almnjshy.agon.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -113,12 +115,16 @@ private fun GameBoard(
                     else -> Alignment.TopCenter
                 }
                 Column(
-                    modifier = Modifier.align(alignment).padding(16.dp),
+                    modifier = Modifier.align(alignment).padding(8.dp),  // was 16.dp
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     SeatLabel(player, isActive = s.currentPlayerIndex == player.id)
-                    Spacer(Modifier.height(6.dp))
-                    OpponentHandView(tileCount = player.hand.size, seat = displaySeat)
+                    Spacer(Modifier.height(4.dp))  // was 6.dp
+                    OpponentHandView(
+                        tileCount = player.hand.size,
+                        seat = displaySeat,
+                        modifier = Modifier.padding(2.dp)
+                    )
                 }
             }
         }
@@ -136,12 +142,12 @@ private fun GameBoard(
         }
 
         Column(
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),  // was 12.dp
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val me = s.players[localSeatIndex]
             SeatLabel(me, isActive = s.currentPlayerIndex == me.id)
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))  // was 6.dp
             PlayerHandView(
                 hand = me.hand,
                 selectedTileId = selectedTile?.id,
@@ -155,12 +161,41 @@ private fun GameBoard(
                         controller.selectTile(tile)
                         controller.playSelectedTile(sides.first())
                     }
-                }
+                },
+                modifier = Modifier.horizontalScroll(rememberScrollState())  // ← Scroll للوضع العمودي
             )
-            if (selectedTile != null && GameEngine.playableSides(s, selectedTile!!).size > 1) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 8.dp)) {
-                    Button(onClick = { controller.playSelectedTile(ChainSide.LEFT) }) { Text("يسار") }
-                    Button(onClick = { controller.playSelectedTile(ChainSide.RIGHT) }) { Text("يمين") }
+
+            // ✅ أزرار الاتجاه تظهر دائماً عند اختيار قطعة + زر إلغاء
+            if (selectedTile != null && !s.roundOver && s.currentPlayerIndex == me.id) {
+                val sides = GameEngine.playableSides(s, selectedTile)
+                if (sides.isNotEmpty()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        if (sides.contains(ChainSide.LEFT)) {
+                            Button(
+                                onClick = { controller.playSelectedTile(ChainSide.LEFT) },
+                                colors = ButtonDefaults.buttonColors(containerColor = AgonColors.Gold)
+                            ) {
+                                Text("◀ يسار", color = AgonColors.WoodDark)
+                            }
+                        }
+                        if (sides.contains(ChainSide.RIGHT)) {
+                            Button(
+                                onClick = { controller.playSelectedTile(ChainSide.RIGHT) },
+                                colors = ButtonDefaults.buttonColors(containerColor = AgonColors.Gold)
+                            ) {
+                                Text("يمين ▶", color = AgonColors.WoodDark)
+                            }
+                        }
+                        // زر إلغاء الاختيار
+                        TextButton(
+                            onClick = { controller.selectTile(selectedTile) }
+                        ) {
+                            Text("إلغاء", color = AgonColors.TileIvory)
+                        }
+                    }
                 }
             }
         }
