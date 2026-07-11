@@ -3,7 +3,7 @@ package com.almnjshy.agon.ui.components
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,8 +16,9 @@ import com.almnjshy.agon.engine.DominoTile
 import com.almnjshy.agon.rendering.DominoTileFace
 
 /**
- * The human player's hand. Tiles can be tapped to select (they lift + enlarge slightly)
- * or dragged upward toward the table to attempt a play in one motion.
+ * The human player's hand. 
+ * - Tap → select tile (shows left/right buttons in GameScreen)
+ * - Drag up slightly → auto-plays the tile directly to the table
  */
 @Composable
 fun PlayerHandView(
@@ -76,15 +77,20 @@ private fun HandTile(
                 scaleY = scale
                 alpha = if (isPlayable) 1f else 0.55f
             }
-            .pointerInput(tile.id) {
-                detectTapGestures(onTap = { onTap() })
-            }
+            // ✅ Tap: uses clickable (does NOT consume drag events)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onTap() }
+            )
+            // ✅ Drag: separate pointerInput that works with clickable
             .pointerInput(tile.id) {
                 detectDragGestures(
                     onDragStart = { isDragging = true },
                     onDragEnd = {
                         isDragging = false
-                        if (dragOffsetY < -80f && isPlayable) onDraggedUp()
+                        // Reduced threshold: 40px instead of 80px for easier play
+                        if (dragOffsetY < -40f && isPlayable) onDraggedUp()
                         dragOffsetY = 0f
                     },
                     onDragCancel = { isDragging = false; dragOffsetY = 0f },
