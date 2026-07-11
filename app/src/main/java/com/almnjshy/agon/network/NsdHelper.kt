@@ -1,5 +1,6 @@
 package com.almnjshy.agon.network
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
@@ -9,11 +10,6 @@ import kotlinx.coroutines.flow.StateFlow
 private const val SERVICE_TYPE = "_agon._tcp."
 private const val SERVICE_NAME = "AgonGame"
 
-/**
- * Advertises (host) or discovers (client) the game over the local network via mDNS, so
- * once everyone is on the same hotspot/WiFi-Direct network, clients find the host's IP
- * automatically instead of anyone typing addresses.
- */
 class NsdHelper(private val context: Context) {
 
     private val nsdManager: NsdManager? =
@@ -43,6 +39,7 @@ class NsdHelper(private val context: Context) {
         manager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, listener)
     }
 
+    @SuppressLint("NewApi")
     fun discoverService() {
         val manager = nsdManager ?: return
         val listener = object : NsdManager.DiscoveryListener {
@@ -51,13 +48,12 @@ class NsdHelper(private val context: Context) {
             override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {}
             override fun onDiscoveryStopped(serviceType: String) {}
 
+            @SuppressLint("NewApi")
             override fun onServiceFound(service: NsdServiceInfo) {
                 if (service.serviceName.contains(SERVICE_NAME)) {
-                    // Use resolveService with NsdManager.ResolveListener (modern API)
                     val resListener = object : NsdManager.ResolveListener {
                         override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) {}
                         override fun onServiceResolved(info: NsdServiceInfo) {
-                            // Use hostAddresses (API 34+) with fallback to deprecated host
                             val address = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                                 info.hostAddresses.firstOrNull()?.hostAddress
                             } else {
