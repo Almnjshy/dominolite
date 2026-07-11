@@ -22,7 +22,6 @@ import com.almnjshy.agon.ui.components.OpponentHandView
 import com.almnjshy.agon.ui.components.PlayerHandView
 import com.almnjshy.agon.ui.theme.AgonColors
 
-/** Local single-device hotseat entry point: one local human + AI opponents. */
 @Composable
 fun GameScreen(
     playerCount: Int,
@@ -44,9 +43,6 @@ fun GameScreen(
     }
 }
 
-/** Network entry point: state is either computed here (host) or received from the host
- *  (client) — see [com.almnjshy.agon.network.NetworkGameViewModel]. Rendering is shared
- *  with hotseat play through [GameBoard]. */
 @Composable
 fun NetworkGameScreen(
     vm: com.almnjshy.agon.network.NetworkGameViewModel,
@@ -62,10 +58,6 @@ fun NetworkGameScreen(
     }
 }
 
-/** Shared table rendering for both hotseat and network play. Always draws the local
- *  seat ([GameController.localSeatIndex]) at the bottom and rotates everyone else
- *  around them, so every device sees itself the same way regardless of absolute
- *  player index. */
 @Composable
 private fun GameBoard(
     controller: GameController,
@@ -115,11 +107,11 @@ private fun GameBoard(
                     else -> Alignment.TopCenter
                 }
                 Column(
-                    modifier = Modifier.align(alignment).padding(8.dp),  // was 16.dp
+                    modifier = Modifier.align(alignment).padding(8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     SeatLabel(player, isActive = s.currentPlayerIndex == player.id)
-                    Spacer(Modifier.height(4.dp))  // was 6.dp
+                    Spacer(Modifier.height(4.dp))
                     OpponentHandView(
                         tileCount = player.hand.size,
                         seat = displaySeat,
@@ -142,12 +134,12 @@ private fun GameBoard(
         }
 
         Column(
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),  // was 12.dp
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val me = s.players[localSeatIndex]
             SeatLabel(me, isActive = s.currentPlayerIndex == me.id)
-            Spacer(Modifier.height(4.dp))  // was 6.dp
+            Spacer(Modifier.height(4.dp))
             PlayerHandView(
                 hand = me.hand,
                 selectedTileId = selectedTile?.id,
@@ -162,12 +154,13 @@ private fun GameBoard(
                         controller.playSelectedTile(sides.first())
                     }
                 },
-                modifier = Modifier.horizontalScroll(rememberScrollState())  // ← Scroll للوضع العمودي
+                modifier = Modifier.horizontalScroll(rememberScrollState())
             )
 
-            // ✅ أزرار الاتجاه تظهر دائماً عند اختيار قطعة + زر إلغاء
-            if (selectedTile != null && !s.roundOver && s.currentPlayerIndex == me.id) {
-                val sides = GameEngine.playableSides(s, selectedTile)
+            // ✅ إصلاح Smart Cast: نخزن في متغير محلي
+            val selected = selectedTile
+            if (selected != null && !s.roundOver && s.currentPlayerIndex == me.id) {
+                val sides = GameEngine.playableSides(s, selected)
                 if (sides.isNotEmpty()) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -189,9 +182,8 @@ private fun GameBoard(
                                 Text("يمين ▶", color = AgonColors.WoodDark)
                             }
                         }
-                        // زر إلغاء الاختيار
                         TextButton(
-                            onClick = { controller.selectTile(selectedTile) }
+                            onClick = { controller.selectTile(selected) }
                         ) {
                             Text("إلغاء", color = AgonColors.TileIvory)
                         }
